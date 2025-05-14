@@ -1,5 +1,5 @@
 // models/Cart.js
-import mongoose from 'mongoose';
+const mongoose =require('mongoose');
 
 const CartItemSchema = new mongoose.Schema({
   pizzaId: { type: mongoose.Schema.Types.ObjectId, ref: 'Pizza', required: true },
@@ -15,5 +15,4 @@ const CartSchema = new mongoose.Schema({
   totalPrice: Number,
   createdAt: { type: Date, default: Date.now }
 });
-
-export default mongoose.model('Cart', CartSchema);
+module.exports = mongoose.model('Cart', CartSchema);

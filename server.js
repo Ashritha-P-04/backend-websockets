@@ -1,8 +1,7 @@
-// server.js
-import express from 'express';
-import mongoose from 'mongoose';
-import cors from 'cors';
-import cartRoutes from './routes/cartRoutes.js';
+const express = require('express');
+const mongoose =require('mongoose');
+const cors = require('cors');
+const cartRoutes =require( './routes/cartRoutes.js');
 
 const app = express();
 const PORT = process.env.PORT || 5000;

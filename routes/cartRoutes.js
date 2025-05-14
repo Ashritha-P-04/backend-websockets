@@ -1,6 +1,7 @@
 // routes/cartRoutes.js
-import express from 'express';
-import Cart from '../models/Cart.js';
+const express = require('express'); 
+const mongoose =require('mongoose');
+const Cart =require( '../models/Cart.js');
 
 const router = express.Router();
 
@@ -26,4 +27,4 @@ router.post('/checkout', async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;
