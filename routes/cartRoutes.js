@@ -1,11 +1,10 @@
-// routes/cartRoutes.js
+
 const express = require('express'); 
 const mongoose =require('mongoose');
 const Cart =require( '../models/Cart.js');
 
 const router = express.Router();
 
-// Save cart (checkout)
 router.post('/checkout', async (req, res) => {
   try {
     const { items } = req.body;

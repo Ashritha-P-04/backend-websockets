@@ -1,46 +1,82 @@
-const express = require('express');
+const express  = require('express');
 const mongoose = require('mongoose');
-const cors = require('cors');
-const http = require('http');
+const cors     = require('cors');
+const http     = require('http');
 const { Server } = require('socket.io');
-const cartRoutes = require('./routes/cartRoutes.js');
 
-const app = express();
-const server = http.createServer(app); // Create HTTP server
-const io = new Server(server, {
-  cors: { origin: 'http://localhost:3000' }, // allow all for dev
-});
+const cartRoutes  = require('./routes/cartRoutes.js');
+const orderRoutes = require('./routes/orderRoutes.js');
+const Order       = require('./models/Order.js');
+
+const app    = express();
+const server = http.createServer(app);
+const io     = new Server(server, { cors: { origin: 'http://localhost:3000' } });
 
 const PORT = process.env.PORT || 5000;
 
-// Middleware
 app.use(cors());
 app.use(express.json());
-app.use('/api/cart', cartRoutes);
+app.use('/api/cart',   cartRoutes);
+app.use('/api/orders', orderRoutes);
 
-// Shared cart (in-memory for demo, can be stored in DB)
+app.get('/api/orders/pending', async (_req, res) => {
+  try {
+    const orders = await Order.find({ status: 'PENDING' }).sort({ timestamp: 1 });
+    res.json(orders);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch orders' });
+  }
+});
+
+app.get('/api/orders/active', async (_req, res) => {
+  try {
+    const orders = await Order.find({ status: { $ne: 'FINISHED' } }).sort({ timestamp: 1 });
+    res.json(orders);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch orders' });
+  }
+});
+
 let sharedCart = [];
 
-// WebSocket logic
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
 
-  // Send current cart to new user
   socket.emit('cart-updated', sharedCart);
-
-  // Handle new cart update from a client
   socket.on('update-cart', (newCart) => {
     sharedCart = newCart;
-    io.emit('cart-updated', sharedCart); // broadcast to all
+    io.emit('cart-updated', sharedCart);
+  });
+  socket.on('confirm-payment', (billing) => {
+    console.log('Payment confirmed:', billing);
+    sharedCart = [];
+    io.emit('cart-updated', []);
+    io.emit('payment-confirmed', billing);
   });
 
-  // Confirm payment from a client
-  socket.on('confirm-payment', (billingDetails) => {
-    console.log('Payment confirmed:', billingDetails);
+  socket.on('new-order', async (orderData) => {
+    console.log('New order received:', orderData);
+    try {
+  
+      const newOrder = await Order.create({ ...orderData, status: 'PENDING' });
+      io.emit('order-received', newOrder);        
+    } catch (err) {
+      console.error('Failed to save order:', err);
+    }
+  });
 
-    sharedCart = []; // Clear the cart after payment
-    io.emit('cart-updated', []); // Update all clients
-    io.emit('payment-confirmed', billingDetails); // Optional: show message
+  socket.on('proceed-order', (orderId) => {
+    io.emit('order-proceeded', orderId);
+  });
+
+ 
+  socket.on('update-order-status', async ({ orderId, status }) => {
+    try {
+      await Order.findByIdAndUpdate(orderId, { status });
+      io.emit('order-status-updated', { orderId, status });
+    } catch (err) {
+      console.error('Status update failed:', err);
+    }
   });
 
   socket.on('disconnect', () => {
@@ -48,13 +84,14 @@ io.on('connection', (socket) => {
   });
 });
 
-// MongoDB connection and start server
-mongoose.connect('mongodb://127.0.0.1:27017/pizza-app', {
+mongoose.connect('mongodb+srv://ashritha04:chinki%402004@cluster0.jbqlq.mongodb.net/ashritha', {
   useNewUrlParser: true,
-  useUnifiedTopology: true
-}).then(() => {
+  useUnifiedTopology: true,
+})
+.then(() => {
   console.log('MongoDB connected');
-  server.listen(PORT, () => console.log(`Server running on port ${PORT}`)); // Start server here
-}).catch(err => {
-  console.error('MongoDB connection failed', err);
-});
+  server.listen(PORT, () =>
+    console.log(`Server running on port ${PORT}`)
+  );
+})
+.catch((err) => console.error('MongoDB connection failed:', err));
